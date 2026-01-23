@@ -1,5 +1,6 @@
 import asyncio
 import os
+
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
@@ -22,7 +23,7 @@ async def main():
 
     register_handlers(dp)
 
-    print("✅ Бот запущен...")
+    print("|=|\tStarting")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
