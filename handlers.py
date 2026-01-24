@@ -1,4 +1,4 @@
-import inlines
+import keyboards
 import asyncio
 
 from aiogram import Dispatcher, F
@@ -29,14 +29,13 @@ async def start(message: Message):
 
     await message.answer(
         f"USER: {message.from_user.first_name}\n\nVM: {hostname}\nIP: {ip}",
-        reply_markup=inlines.get_start_keyboard()
+        reply_markup=keyboards.get_start_keyboard()
     )
 
-async def status(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
+async def status(message: Message):
+    await message.answer(
         "Metrics:",
-        reply_markup=inlines.get_status_keyboard()
+        reply_markup=keyboards.get_status_keyboard()
     )
 
 async def status_mem(callback: CallbackQuery):
@@ -72,9 +71,9 @@ async def fallback(message: Message):
 
 def register_handlers(dp: Dispatcher):
     dp.message.register(start, Command("start"))
+    dp.message.register(start, F.text == "Main")
+    dp.message.register(status, F.text == "Status")
     dp.message.register(fallback)
-
-    dp.callback_query.register(status, F.data == "status")
 
     dp.callback_query.register(status_mem, F.data == "status_mem")
     dp.callback_query.register(status_cpu, F.data == "status_cpu")
