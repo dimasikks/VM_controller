@@ -8,7 +8,7 @@ load_dotenv(".main_env")
 load_dotenv(".middleware_env")
 
 import middleware
-from handlers import register_handlers
+from functions import register_handlers
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ACCESS_IDS_SEPARATOR = os.getenv("ACCESS_ID_SEPARATOR")

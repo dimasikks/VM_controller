@@ -17,3 +17,10 @@ def get_status_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="CPU", callback_data="status_cpu")],
         [InlineKeyboardButton(text="DISK", callback_data="status_disks")]
     ])
+
+def get_logs_keyboard() -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="syslog", callback_data="logs_syslog")],
+        [InlineKeyboardButton(text="auth", callback_data="logs_auth")],
+        [InlineKeyboardButton(text="dmesg", callback_data="logs_dmesg")]
+    ])

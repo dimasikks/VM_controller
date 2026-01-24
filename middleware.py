@@ -12,7 +12,7 @@ class AuthMiddleware(BaseMiddleware):
         self,
         handler: Callable[[Message, Dict[str, Any]], Awaitable[Any]],
         event: Message,
-        data: Dict[str, Any]  # ← ИСПРАВЛЕНО: добавлено имя "data"
+        data: Dict[str, Any]
     ) -> Any:
         user_id = getattr(event, "from_user", None) and event.from_user.id
         if user_id not in self.allowed_ids:

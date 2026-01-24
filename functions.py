@@ -5,6 +5,8 @@ from aiogram import Dispatcher, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.filters import Command
 
+#=======# SERVER #=======#
+
 async def command(cmd: str) -> str:
     try:
         proc = await asyncio.create_subprocess_shell(
@@ -23,6 +25,8 @@ async def command(cmd: str) -> str:
     except Exception as e:
         return f"ERROR EXCEPTION:\n{str(e)}"
 
+#=======# START #=======#
+
 async def start(message: Message):
     hostname = await command("hostname")
     ip = await command("hostname -I")
@@ -31,6 +35,8 @@ async def start(message: Message):
         f"USER: {message.from_user.first_name}\n\nVM: {hostname}\nIP: {ip}",
         reply_markup=keyboards.get_start_keyboard()
     )
+
+#=======# STATUS #=======#
 
 async def status(message: Message):
     await message.answer(
@@ -65,14 +71,26 @@ async def status_disks(callback: CallbackQuery):
         f"{disks}"
     )
 
+#=======# LOGS #=======#
+
+async def logs(message: Message):
+    await message.answer(
+        "Types:",
+        reply_markup=keyboards.get_logs_keyboard()
+    )
+
+#=======# FALLBACK #=======#
+
 async def fallback(message: Message):
     await message.answer("USAGE: /start")
-
 
 def register_handlers(dp: Dispatcher):
     dp.message.register(start, Command("start"))
     dp.message.register(start, F.text == "Main")
     dp.message.register(status, F.text == "Status")
+    dp.message.register(logs, F.text == "Logs")
+    # dp.message.register(statistics, F.text == "Statistics")
+    # dp.message.register(systmed, F.text == "Systemd")
     dp.message.register(fallback)
 
     dp.callback_query.register(status_mem, F.data == "status_mem")
