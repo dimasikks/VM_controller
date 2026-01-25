@@ -4,8 +4,8 @@ import os
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
-load_dotenv(".main_env")
-load_dotenv(".middleware_env")
+load_dotenv("envs/.main")
+load_dotenv("envs/.middleware")
 
 import middleware
 from functions import register_handlers
