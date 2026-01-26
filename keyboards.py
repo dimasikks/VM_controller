@@ -18,9 +18,9 @@ def get_status_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="DISK", callback_data="status_disks")]
     ])
 
-def get_logs_keyboard() -> InlineKeyboardMarkup:
+def get_logs_keyboard(buttonTypes: dict) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="syslog", callback_data="logs_syslog")],
-        [InlineKeyboardButton(text="auth", callback_data="logs_auth")],
-        [InlineKeyboardButton(text="dmesg", callback_data="logs_dmesg")]
+        [InlineKeyboardButton(text="syslog", callback_data="logs_syslog"), InlineKeyboardButton(text=buttonTypes["syslog"], callback_data="tbut:syslog")],
+        [InlineKeyboardButton(text="auth", callback_data="logs_auth"), InlineKeyboardButton(text=buttonTypes["auth"], callback_data="tbut:auth")],
+        [InlineKeyboardButton(text="dmesg", callback_data="logs_dmesg"), InlineKeyboardButton(text=buttonTypes["dmesg"], callback_data="tbut:dmesg")]
     ])
