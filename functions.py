@@ -9,6 +9,24 @@ from aiogram.filters import Command
 
 #=======# SERVER #=======#
 
+buttonTypes = {
+    "syslog": "TXT",
+    "auth": "TXT",
+    "dmesg": "TXT"
+}
+
+async def tbut(callback: CallbackQuery):
+    type_button = callback.data.split(":", 1)[1]
+
+    buttonTypes[type_button] = "IMG" if buttonTypes[type_button] == "TXT" else "TXT"
+        
+    await callback.answer()
+    await callback.message.edit_text(
+        text="Types:",
+        reply_markup=keyboards.get_logs_keyboard(buttonTypes)
+    )
+
+
 with open("configs/image.yml", "r", encoding="utf-8") as config:
     image_settings = yaml.safe_load(config)
 
@@ -150,7 +168,7 @@ log_lines = 15
 async def logs(message: Message):
     await message.answer(
         "Types:",
-        reply_markup=keyboards.get_logs_keyboard()
+        reply_markup=keyboards.get_logs_keyboard(buttonTypes)
     )
 
 async def logs_syslog(callback: CallbackQuery):
@@ -191,6 +209,8 @@ async def fallback(message: Message):
     await message.answer("USAGE: /start")
 
 def register_handlers(dp: Dispatcher):
+    dp.callback_query.register(tbut, F.data.startswith("tbut:"))
+
     dp.message.register(start, Command("start"))
     dp.message.register(start, F.text == "Main")
     dp.message.register(status, F.text == "Status")
