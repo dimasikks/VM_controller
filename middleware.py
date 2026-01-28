@@ -17,8 +17,8 @@ class AuthMiddleware(BaseMiddleware):
         user_id = getattr(event, "from_user", None) and event.from_user.id
         if user_id not in self.allowed_ids:
             if isinstance(event, Message):
-                await event.answer("Access denied")
+                await event.answer("Access denied, do not do it again")
             elif isinstance(event, CallbackQuery):
-                await event.answer("Access denied")
+                await event.answer("Access denied, do not do it again")
             return
         return await handler(event, data)

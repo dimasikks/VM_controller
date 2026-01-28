@@ -132,6 +132,8 @@ async def start(message: Message):
 
 #=======# SYSTEM #=======#
 
+security_lastlogs = 5
+
 async def system(message: Message):
     hostname = await command_shell("hostname")
     ip = await command_shell("hostname -I")
@@ -142,6 +144,27 @@ async def system(message: Message):
         f"<b>IP: </b>{ip}\n",
         parse_mode="HTML",
         reply_markup=keyboards.get_system_usage_keyboard()
+    )
+
+async def system_security(callback: CallbackQuery):
+    uname = await command_shell("uname -a")
+    users = await command_shell("who")
+    lastl = await command_image(f"last -n {security_lastlogs}")
+
+    await callback.message.answer(
+            f"<b><u>SYSTEM SECURITY</u></b>\n"
+            f"\n<b>VM extended:</b>\n"
+            f"<pre>{uname}</pre>\n"
+            f"\n<b>Users in system: </b>\n"
+            f"<pre>{users}</pre>",
+            parse_mode="HTML"
+            )
+
+    img = FSInputFile(lastl)
+    await callback.message.answer_photo(
+        img,
+        caption=f"<b>Last {security_lastlogs} logins in system</b>",
+        parse_mode="HTML"
     )
 
 #=======# STATUS #=======#
@@ -273,7 +296,11 @@ log_commands = {
 }
 
 async def logs(message: Message):
+<<<<<<< HEAD
     du_logs = await command_shell("sudo du -sh /var/log")
+=======
+    du_logs = await command_shell("sudo du -sh /var/log | awk '{print $1}'")
+>>>>>>> 0.3
 
     await message.answer(
         f"<b>Log directory:</b> {main_log_dir}\n"
@@ -327,9 +354,10 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(logs, F.text == "Logs")
     dp.message.register(fallback)
 
-    for flog_type_data, path in log_paths.items():
-        dp.callback_query.register(logs_definer, F.data == flog_type_data)
+    dp.callback_query.register(system_security, F.data == "system_security")
 
     for fstatus_type_data in statuses:
         dp.callback_query.register(status_definer, F.data == fstatus_type_data)
         
+    for flog_type_data, path in log_paths.items():
+        dp.callback_query.register(logs_definer, F.data == flog_type_data)
