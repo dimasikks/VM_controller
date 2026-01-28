@@ -124,6 +124,15 @@ async def command_shell(cmd: str) -> str:
 #=======# START #=======#
 
 async def start(message: Message):
+    await message.answer(
+        f"<b>Activated admin keyboard</b>",
+        parse_mode="HTML",
+        reply_markup=keyboards.get_system_keyboard()
+    )
+
+#=======# SYSTEM #=======#
+
+async def system(message: Message):
     hostname = await command_shell("hostname")
     ip = await command_shell("hostname -I")
 
@@ -132,7 +141,7 @@ async def start(message: Message):
         f"<b>VM: </b>{hostname}\n"
         f"<b>IP: </b>{ip}\n",
         parse_mode="HTML",
-        reply_markup=keyboards.get_start_keyboard()
+        reply_markup=keyboards.get_system_usage_keyboard()
     )
 
 #=======# STATUS #=======#
@@ -151,6 +160,7 @@ ps_limiter = 10
 
 async def status(message: Message):
     hostname = await command_shell("hostname")
+    ip = await command_shell("hostname -I")
     la = await command_shell(f"uptime | grep -Eo '[0-9],[0-9]{{2}}.*'")
 
     mem_total = await command_shell(r"""free -m | awk 'NR==2 {printf "%.2f\n",$2/1024}'""")
@@ -171,17 +181,14 @@ async def status(message: Message):
             priv_disks += f"{output}\n"        
 
     await message.answer(
-        f"<b>STATUS OF {hostname}</b>\n"
+        f"<b>Status of {hostname}</b>\n"
         f"{uptime}\n"
         f"\n<b><u>MEMORY STATUS</u></b>\n"
-        f"<b>Total:</b> {mem_total} Gb\n"
-        f"<b>Used:</b> {mem_used} Gb\n"
-        f"<b>Available:</b> {mem_avail} Gb\n"
+        f"<b>T/U/A: {mem_total} Gb | {mem_used} Gb | {mem_avail} Gb</b>\n"
         f"\n<b><u>CPU STATUS</u></b>\n"
         f"<b>Load Average:</b> {la}\n"
         f"<b>CPUs:</b> {cpus}\n"
         f"\n<b><u>DISKS STATUS</u></b>\n"
-        f"<b>Stats for choosen disks:</b>\n"
         f"<pre>{priv_disks}</pre>",
         parse_mode="HTML",
         reply_markup=keyboards.get_status_keyboard(buttonTypesStatus, status_prefix)
@@ -252,7 +259,8 @@ async def status_definer(callback: CallbackQuery):
 #=======# LOGS #=======#
 
 log_prefix = "logs_"
-log_lines = 10
+log_lines = 20
+main_log_dir = "/var/log"
 log_paths = {
     f"{log_prefix}syslog": "/var/log/syslog",
     f"{log_prefix}auth": "/var/log/auth.log",
@@ -265,8 +273,12 @@ log_commands = {
 }
 
 async def logs(message: Message):
+    du_logs = await command_shell("sudo du -sh /var/log")
+
     await message.answer(
-        "Types:",
+        f"<b>Log directory:</b> {main_log_dir}\n"
+        f"<b>Size:</b> {du_logs}",
+        parse_mode="HTML",
         reply_markup=keyboards.get_logs_keyboard(buttonTypesLogs, log_prefix)
     )
 
@@ -299,17 +311,20 @@ async def logs_definer(callback: CallbackQuery):
 #=======# FALLBACK #=======#
 
 async def fallback(message: Message):
-    await message.answer("USAGE: /start")
+    await message.answer(
+        f"<b>Activate admin keyboard:</b> /start",
+        parse_mode="HTML"
+    )
+
+#=======# HANDLERS #=======#
 
 def register_handlers(dp: Dispatcher):
     dp.callback_query.register(tbut, F.data.startswith("tbut:"))
 
     dp.message.register(start, Command("start"))
-    dp.message.register(start, F.text == "Main")
+    dp.message.register(system, F.text == "System")
     dp.message.register(status, F.text == "Status")
     dp.message.register(logs, F.text == "Logs")
-    # dp.message.register(statistics, F.text == "Statistics")
-    # dp.message.register(systmed, F.text == "Systemd")
     dp.message.register(fallback)
 
     for flog_type_data, path in log_paths.items():

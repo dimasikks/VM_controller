@@ -1,15 +1,21 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
-def get_start_keyboard() -> InlineKeyboardMarkup:
+def get_system_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Main")],
+            [KeyboardButton(text="System")],
             [KeyboardButton(text="Status"), KeyboardButton(text="Logs")],
-            [KeyboardButton(text="Statistics"), KeyboardButton(text="Systemctl")]
+            [KeyboardButton(text="Configuration")]
         ],
         resize_keyboard=True,      
         one_time_keyboard=False    
     )
+
+def get_system_usage_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Security", callback_data=f"system_security"), InlineKeyboardButton(text="Systemctl", callback_data=f"system_systemctl")],
+        [InlineKeyboardButton(text="Shell", callback_data=f"system_shell")]
+    ])
 
 def get_status_keyboard(buttonTypes: dict, prefix: str) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=[
