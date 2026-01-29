@@ -6,8 +6,13 @@ from PIL import Image, ImageDraw, ImageFont
 from aiogram import Dispatcher, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
 #=======# SERVER #=======#
+
+class waitings(StatesGroup):
+    waiting_systemctl = State()
 
 buttonTypesLogs = {
     "syslog": "TXT",
@@ -20,6 +25,69 @@ buttonTypesStatus = {
     "cpu": "TXT",
     "disks": "TXT"
 }
+
+systemctl_status = ""
+
+async def answerw(message: Message, state: FSMContext):
+    cs = await state.get_state()
+    uinput = message.text.strip()
+    global systemctl_status
+
+    if len(uinput.split()) > 1:
+        await message.answer(
+            f"<b>Service name is incorrect, exit</b>",
+            parse_mode="HTML"
+        )
+        return
+    
+    if cs == waitings.waiting_systemctl:
+        check = await command_shell(f"sudo systemctl status {uinput}")
+
+        if "code 4" in check:
+            await message.answer(
+                f"<b>Service not found, exit</b>",
+                parse_mode="HTML"
+            )
+            return
+
+        if systemctl_status == "status":
+            path = await command_image(f"echo 'Checking...\n';sudo systemctl status {uinput} --no-pager")
+
+            img = FSInputFile(path)
+            await message.answer_photo(
+                img,
+                caption=f"<b>Systemctl status {uinput} result</b>",
+                parse_mode="HTML"
+            )
+        elif systemctl_status == "stop":
+            path = await command_image(f"echo 'Stopping...\n';sudo systemctl stop {uinput}; echo 'Checking...\n';sudo systemctl status {uinput} --no-pager")
+
+            img = FSInputFile(path)
+            await message.answer_photo(
+                img,
+                caption=f"<b>Systemctl stop {uinput} result</b>",
+                parse_mode="HTML"
+            )
+        elif systemctl_status == "start":
+            path = await command_image(f"echo 'Starting...\n';sudo systemctl start {uinput};echo 'Checking...\n';sudo systemctl status {uinput} --no-pager")
+
+            img = FSInputFile(path)
+            await message.answer_photo(
+                img,
+                caption=f"<b>Systemctl start {uinput} result</b>",
+                parse_mode="HTML"
+            )
+        else:
+            path = await command_image(f"echo 'Restarting...\n';sudo systemctl restart {uinput}; echo 'Checking...\n';sudo systemctl status {uinput} --no-pager")
+
+            img = FSInputFile(path)
+            await message.answer_photo(
+                img,
+                caption=f"<b>Systemctl restart {uinput} result</b>",
+                parse_mode="HTML"
+            )
+
+    await state.clear()
 
 async def tbut(callback: CallbackQuery):
     type_button = callback.data.split(":", 1)[1]
@@ -57,7 +125,7 @@ def render_image(text: str) -> str:
     try:
         font = ImageFont.truetype(fp, fs)
     except OSError:
-        print("ERROR: FONT NOT FOUND")
+        print("E: FONT NOT FOUND")
 
     lines = text.splitlines() or [""]
     
@@ -115,11 +183,11 @@ async def command_shell(cmd: str) -> str:
         if proc.returncode == 0:
             output = stdout.decode('utf-8').strip()
         else:
-            output = f"ERROR (code {proc.returncode}):\n{stderr.decode('utf-8').strip()}"
+            output = f"E: (code {proc.returncode}):\n{stderr.decode('utf-8').strip()}"
 
         return output
     except Exception as e:
-        return f"ERROR EXCEPTION:\n{str(e)}"
+        return f"E: EXCEPTION - \n{str(e)}"
 
 #=======# START #=======#
 
@@ -166,6 +234,46 @@ async def system_security(callback: CallbackQuery):
         caption=f"<b>Last {security_lastlogs} logins in system</b>",
         parse_mode="HTML"
     )
+
+systemctl_statuses = [
+    "status",
+    "start",
+    "stop",
+    "restart"
+]
+
+async def system_systemctl(callback: CallbackQuery):
+    await callback.answer()
+
+    svc_active = await command_shell("sudo systemctl list-units --all --type=service --state=active | grep service | wc -l")
+    svc_inactive = await command_shell("sudo systemctl list-units --all --type=service --state=inactive | grep service | wc -l")
+
+    await callback.message.answer(
+        f"<b><u>SYSTEMCTL STATUS</u></b>\n\n"
+        f"<b>Active services:</b> {svc_active}\n"
+        f"<b>Inactive services:</b> {svc_inactive}",
+        parse_mode="HTML",
+        reply_markup=keyboards.get_system_systemctl_keyboard()
+    )
+
+async def systemctl_definer(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    global systemctl_status
+
+    if callback.data == "systemctl_status":
+        systemctl_status = "status"
+    elif callback.data == "systemctl_stop":
+        systemctl_status = "stop"
+    elif callback.data == "systemctl_start":
+        systemctl_status = "start"
+    else:
+        systemctl_status = "restart"
+
+    await callback.message.answer(
+        f"<b>Enter systemctl UNIT name to <u>{systemctl_status}</u></b>",
+        parse_mode="HTML"
+    )
+    await state.set_state(waitings.waiting_systemctl)
 
 #=======# STATUS #=======#
 
@@ -270,7 +378,7 @@ async def status_definer(callback: CallbackQuery):
                 parse_mode="HTML"
                 )
         else:
-            path = await command_image("echo -e '|=============| DF |=============|\n'; df -h; echo -e '\n|=============| LSBLK |=============|\n'; lsblk | grep -v 'loop'")
+            path = await command_image("echo '|=============| DF |=============|\n';df -h; echo '\n|=============| LSBLK |=============|\n';lsblk | grep -v 'loop'")
 
             img = FSInputFile(path)
             await callback.message.answer_photo(
@@ -348,12 +456,18 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(system, F.text == "System")
     dp.message.register(status, F.text == "Status")
     dp.message.register(logs, F.text == "Logs")
-    dp.message.register(fallback)
 
     dp.callback_query.register(system_security, F.data == "system_security")
+    dp.callback_query.register(system_systemctl, F.data == "system_systemctl")
+    dp.message.register(answerw, waitings.waiting_systemctl)
+
+    for fsystemctl_type_data in systemctl_statuses:
+        dp.callback_query.register(systemctl_definer, F.data == f"systemctl_{fsystemctl_type_data}")
 
     for fstatus_type_data in statuses:
         dp.callback_query.register(status_definer, F.data == fstatus_type_data)
         
     for flog_type_data, path in log_paths.items():
         dp.callback_query.register(logs_definer, F.data == flog_type_data)
+    
+    dp.message.register(fallback)
