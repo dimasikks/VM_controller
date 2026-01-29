@@ -296,11 +296,7 @@ log_commands = {
 }
 
 async def logs(message: Message):
-<<<<<<< HEAD
-    du_logs = await command_shell("sudo du -sh /var/log")
-=======
     du_logs = await command_shell("sudo du -sh /var/log | awk '{print $1}'")
->>>>>>> 0.3
 
     await message.answer(
         f"<b>Log directory:</b> {main_log_dir}\n"
