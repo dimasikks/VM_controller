@@ -17,6 +17,14 @@ def get_system_usage_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Shell", callback_data=f"system_shell")]
     ])
 
+def get_system_systemctl_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Status", callback_data=f"systemctl_status")],
+        [InlineKeyboardButton(text="Stop", callback_data=f"systemctl_stop")],
+        [InlineKeyboardButton(text="Start", callback_data=f"systemctl_start")],
+        [InlineKeyboardButton(text="Restart", callback_data=f"systemctl_restart")]
+    ])
+
 def get_status_keyboard(buttonTypes: dict, prefix: str) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="MEM", callback_data=f"{prefix}mem"), InlineKeyboardButton(text=buttonTypes["mem"], callback_data="tbut:mem")],
