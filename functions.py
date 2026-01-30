@@ -1,6 +1,7 @@
 import keyboards
 import asyncio
 import yaml
+import os
 
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Dispatcher, F
@@ -8,11 +9,17 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from dotenv import load_dotenv
 
 #=======# SERVER #=======#
 
+load_dotenv("envs/.security")
+shellpw = os.getenv("SHELL_PASSWD")
+
 class waitings(StatesGroup):
     waiting_systemctl = State()
+    waiting_shellpw = State()
+    waiting_shell_command = State()
 
 buttonTypesLogs = {
     "syslog": "TXT",
@@ -32,15 +39,16 @@ async def answerw(message: Message, state: FSMContext):
     cs = await state.get_state()
     uinput = message.text.strip()
     global systemctl_status
-
-    if len(uinput.split()) > 1:
-        await message.answer(
-            f"<b>Service name is incorrect, exit</b>",
-            parse_mode="HTML"
-        )
-        return
+    global shellpw
     
     if cs == waitings.waiting_systemctl:
+        if len(uinput.split()) > 1:
+            await message.answer(
+                f"<b>Service name is incorrect, exit</b>",
+                parse_mode="HTML"
+            )
+            return
+
         check = await command_shell(f"sudo systemctl status {uinput}")
 
         if "code 4" in check:
@@ -86,9 +94,23 @@ async def answerw(message: Message, state: FSMContext):
                 caption=f"<b>Systemctl restart {uinput} result</b>",
                 parse_mode="HTML"
             )
+            await state.clear()
 
-    await state.clear()
+    if cs == waitings.waiting_shellpw:
+        if uinput != shellpw:
+            await message.answer(
+                f"<b>Password wrong, exit</b>",
+                parse_mode="HTML"
+            )
+            return
 
+        await message.answer(
+                f"<b>Success. Enter command</b>",
+                parse_mode="HTML"
+        )
+        await state.set_state(waitings.waiting_shell_command)
+        return
+        
 async def tbut(callback: CallbackQuery):
     type_button = callback.data.split(":", 1)[1]
 
@@ -275,6 +297,28 @@ async def systemctl_definer(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(waitings.waiting_systemctl)
 
+async def system_shell(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+
+    await callback.message.answer(
+        f"<b>Enter shell password</b>",
+        parse_mode="HTML"
+    )
+    await state.set_state(waitings.waiting_shellpw)
+
+async def shell_command(message: Message, state: FSMContext):
+    shell_command = message.text.strip()
+
+    path = await command_image(shell_command)
+
+    img = FSInputFile(path)
+    await message.answer_photo(
+        img,
+        caption=f"<b>Command result</b>",
+        parse_mode="HTML"
+    )
+    await state.clear()
+
 #=======# STATUS #=======#
 
 status_prefix = "status_"
@@ -459,7 +503,11 @@ def register_handlers(dp: Dispatcher):
 
     dp.callback_query.register(system_security, F.data == "system_security")
     dp.callback_query.register(system_systemctl, F.data == "system_systemctl")
+    dp.callback_query.register(system_shell, F.data == "system_shell")
     dp.message.register(answerw, waitings.waiting_systemctl)
+    dp.message.register(answerw, waitings.waiting_shellpw)
+
+    dp.message.register(shell_command, waitings.waiting_shell_command)
 
     for fsystemctl_type_data in systemctl_statuses:
         dp.callback_query.register(systemctl_definer, F.data == f"systemctl_{fsystemctl_type_data}")
