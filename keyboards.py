@@ -38,3 +38,8 @@ def get_logs_keyboard(buttonTypes: dict, prefix: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="auth", callback_data=f"{prefix}auth"), InlineKeyboardButton(text=buttonTypes["auth"], callback_data="tbut:auth")],
         [InlineKeyboardButton(text="dmesg", callback_data=f"{prefix}dmesg"), InlineKeyboardButton(text=buttonTypes["dmesg"], callback_data="tbut:dmesg")]
     ])
+
+def get_configuration_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Edit configuration", callback_data=f"configuration_edit")]
+    ])

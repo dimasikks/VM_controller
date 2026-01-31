@@ -11,15 +11,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from dotenv import load_dotenv
 
-#=======# SERVER #=======#
+#=======# GLOBAL VARS #=======#
 
 load_dotenv("envs/.security")
 shellpw = os.getenv("SHELL_PASSWD")
-
-class waitings(StatesGroup):
-    waiting_systemctl = State()
-    waiting_shellpw = State()
-    waiting_shell_command = State()
 
 buttonTypesLogs = {
     "syslog": "TXT",
@@ -33,15 +28,94 @@ buttonTypesStatus = {
     "disks": "TXT"
 }
 
+with open("configs/image.yml", "r", encoding="utf-8") as config:
+    image_settings = yaml.safe_load(config)
+
+fp = image_settings['font_path']
+fs = image_settings['font_size']
+p0 = image_settings['padding'][0]
+p1 = image_settings['padding'][1]
+lh = image_settings['line_height']
+bc = image_settings['bg_color']
+tc = image_settings['text_color']
+sp = image_settings['save_path']
+mw = image_settings['max_image_width']
+mh = image_settings['max_image_height']
+
+with open("configs/mconfiguration.yml", "r", encoding="utf-8") as config:
+    mconfiguration = yaml.safe_load(config)
+
+#=======# SYSTEM VARS #=======#
+
 systemctl_status = ""
+security_lastlogs = mconfiguration["security_lastlogs"]
+systemctl_statuses = [
+    "status",
+    "start",
+    "stop",
+    "restart"
+]
+
+#=======# STATUS VARS #=======#
+
+status_prefix = "status_"
+status_lines = mconfiguration["status_lines"]
+statuses = [
+    f"{status_prefix}mem",
+    f"{status_prefix}cpu",
+    f"{status_prefix}disks"
+]
+scan_disks = [
+    "/dev/*"
+]
+ps_limiter = mconfiguration["ps_limiter"]
+
+#=======# LOGS VARS #=======#
+
+log_prefix = "logs_"
+log_lines = mconfiguration["log_lines"]
+main_log_dir = "/var/log"
+log_paths = {
+    f"{log_prefix}syslog": "/var/log/syslog",
+    f"{log_prefix}auth": "/var/log/auth.log",
+    f"{log_prefix}dmesg": "/var/log/dmesg"
+}
+log_commands = {
+    f"{log_prefix}syslog": f"sudo tail -n {log_lines} {log_paths[f'{log_prefix}syslog']}",
+    f"{log_prefix}auth": f"sudo tail -n {log_lines} {log_paths[f'{log_prefix}auth']}",
+    f"{log_prefix}dmesg": f"sudo tail -n {log_lines} {log_paths[f'{log_prefix}dmesg']}"
+}
+
+#=======# CONFIGURATION VARS #=======#
+
+
+
+#=======# GLOBAL FUNCTIONS #=======#
+
+class waitings(StatesGroup):
+    waiting_systemctl = State()
+    waiting_shellpw = State()
+    waiting_shell_command = State()
+    waiting_edit_configuration = State()
+
+def update_conf(updates: dict):
+    global mconfiguration
+
+    for var, value in updates.items():
+        mconfiguration[var] = value
+
+    with open("configs/mconfiguration.yml", "w", encoding="utf-8") as config:
+        for var, value in mconfiguration.items():
+            config.write(f"{var}: {value}\n")
 
 async def answerw(message: Message, state: FSMContext):
     cs = await state.get_state()
-    uinput = message.text.strip()
     global systemctl_status
     global shellpw
     
     if cs == waitings.waiting_systemctl:
+        uinput = message.text.strip()
+
         if len(uinput.split()) > 1:
             await message.answer(
                 f"<b>Service name is incorrect, exit</b>",
@@ -97,11 +171,14 @@ async def answerw(message: Message, state: FSMContext):
             await state.clear()
 
     if cs == waitings.waiting_shellpw:
+        uinput = message.text.strip()
+
         if uinput != shellpw:
             await message.answer(
                 f"<b>Password wrong, exit</b>",
                 parse_mode="HTML"
             )
+            await state.clear()
             return
 
         await message.answer(
@@ -110,7 +187,31 @@ async def answerw(message: Message, state: FSMContext):
         )
         await state.set_state(waitings.waiting_shell_command)
         return
+    
+    if cs == waitings.waiting_edit_configuration:
+        uinput = message.text.split("\n")
+
+        result = {}
+        for uinput_str in uinput:
+            fin_str = uinput_str.split("=")
+
+            if fin_str[0] in mconfiguration:
+                result[fin_str[0]] = fin_str[1] 
+            else:
+                await message.answer(
+                    f"<b>Wrong system var, exit</b>",
+                    parse_mode="HTML"
+                )
+                await state.clear()
+                return
         
+        update_conf(result)
+        await message.answer(
+                f"<b>Configuration updated</b>",
+                parse_mode="HTML"
+        )
+        await state.clear()
+
 async def tbut(callback: CallbackQuery):
     type_button = callback.data.split(":", 1)[1]
 
@@ -128,20 +229,6 @@ async def tbut(callback: CallbackQuery):
         await callback.message.edit_reply_markup(
             reply_markup=keyboards.get_status_keyboard(buttonTypesStatus, status_prefix)
         )
-
-with open("configs/image.yml", "r", encoding="utf-8") as config:
-    image_settings = yaml.safe_load(config)
-
-fp = image_settings['font_path']
-fs = image_settings['font_size']
-p0 = image_settings['padding'][0]
-p1 = image_settings['padding'][1]
-lh = image_settings['line_height']
-bc = image_settings['bg_color']
-tc = image_settings['text_color']
-sp = image_settings['save_path']
-mw = image_settings['max_image_width']
-mh = image_settings['max_image_height']
 
 def render_image(text: str) -> str:
     try:
@@ -211,7 +298,7 @@ async def command_shell(cmd: str) -> str:
     except Exception as e:
         return f"E: EXCEPTION - \n{str(e)}"
 
-#=======# START #=======#
+#=======# START FUNCTIONS #=======#
 
 async def start(message: Message):
     await message.answer(
@@ -220,9 +307,7 @@ async def start(message: Message):
         reply_markup=keyboards.get_system_keyboard()
     )
 
-#=======# SYSTEM #=======#
-
-security_lastlogs = 5
+#=======# SYSTEM FUNCTIONS #=======#
 
 async def system(message: Message):
     hostname = await command_shell("hostname")
@@ -256,13 +341,6 @@ async def system_security(callback: CallbackQuery):
         caption=f"<b>Last {security_lastlogs} logins in system</b>",
         parse_mode="HTML"
     )
-
-systemctl_statuses = [
-    "status",
-    "start",
-    "stop",
-    "restart"
-]
 
 async def system_systemctl(callback: CallbackQuery):
     await callback.answer()
@@ -319,19 +397,7 @@ async def shell_command(message: Message, state: FSMContext):
     )
     await state.clear()
 
-#=======# STATUS #=======#
-
-status_prefix = "status_"
-status_lines = 10
-statuses = [
-    f"{status_prefix}mem",
-    f"{status_prefix}cpu",
-    f"{status_prefix}disks"
-]
-scan_disks = [
-    "/dev/*"
-]
-ps_limiter = 10
+#=======# STATUS FUNCTIONS #=======#
 
 async def status(message: Message):
     hostname = await command_shell("hostname")
@@ -431,21 +497,7 @@ async def status_definer(callback: CallbackQuery):
                 parse_mode="HTML"
             )
 
-#=======# LOGS #=======#
-
-log_prefix = "logs_"
-log_lines = 20
-main_log_dir = "/var/log"
-log_paths = {
-    f"{log_prefix}syslog": "/var/log/syslog",
-    f"{log_prefix}auth": "/var/log/auth.log",
-    f"{log_prefix}dmesg": "/var/log/dmesg"
-}
-log_commands = {
-    f"{log_prefix}syslog": f"sudo tail -n {log_lines} {log_paths[f'{log_prefix}syslog']}",
-    f"{log_prefix}auth": f"sudo tail -n {log_lines} {log_paths[f'{log_prefix}auth']}",
-    f"{log_prefix}dmesg": f"sudo tail -n {log_lines} {log_paths[f'{log_prefix}dmesg']}"
-}
+#=======# LOGS FUNCTIONS #=======#
 
 async def logs(message: Message):
     du_logs = await command_shell("sudo du -sh /var/log | awk '{print $1}'")
@@ -483,7 +535,34 @@ async def logs_definer(callback: CallbackQuery):
                     parse_mode="HTML"
                 )
 
-#=======# FALLBACK #=======#
+#=======# CONFIGURATION FUNCTIONS #=======# 
+
+async def configuration(message: Message):
+    output = ""
+    for var, value in mconfiguration.items():
+        output += f"{var}: {value}\n"
+
+    await message.answer(
+        f"<b><u>CONFIGURATION PARAMS</u></b>\n\n"
+        f"{output}",
+        parse_mode="HTML",
+        reply_markup=keyboards.get_configuration_keyboard()
+    )
+
+async def configuration_edit(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+
+    example = f"param1=10\nparam2=20"
+
+    await callback.message.answer(
+        f"<b>Enter configuration params to edit</b>\n\n"
+        f"<b>Examle:</b>\n"
+        f"{example}",
+        parse_mode="HTML"
+    )
+    await state.set_state(waitings.waiting_edit_configuration)
+
+#=======# FALLBACK FUNCTION #=======#
 
 async def fallback(message: Message):
     await message.answer(
@@ -497,15 +576,20 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(tbut, F.data.startswith("tbut:"))
 
     dp.message.register(start, Command("start"))
+
     dp.message.register(system, F.text == "System")
     dp.message.register(status, F.text == "Status")
     dp.message.register(logs, F.text == "Logs")
+    dp.message.register(configuration, F.text == "Configuration")
 
     dp.callback_query.register(system_security, F.data == "system_security")
     dp.callback_query.register(system_systemctl, F.data == "system_systemctl")
     dp.callback_query.register(system_shell, F.data == "system_shell")
+    dp.callback_query.register(configuration_edit, F.data == "configuration_edit")
+    
     dp.message.register(answerw, waitings.waiting_systemctl)
     dp.message.register(answerw, waitings.waiting_shellpw)
+    dp.message.register(answerw, waitings.waiting_edit_configuration)
 
     dp.message.register(shell_command, waitings.waiting_shell_command)
 
